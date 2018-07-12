@@ -45,6 +45,8 @@ echo "virtualenv env"
 virtualenv env
 echo "source env/bin/activate"
 source env/bin/activate
+echo "pip install old pip"
+pip install pip==9.0.3
 echo "pip install $deployment_dir/../source/image-handler-custom-resource/. --target=$deployment_dir/dist/env/lib/python2.7/site-packages/"
 pip install $deployment_dir/../source/image-handler-custom-resource/. --target=$deployment_dir/dist/env/lib/python2.7/site-packages/
 cd $deployment_dir/dist/env/lib/python2.7/site-packages/
@@ -62,6 +64,8 @@ echo "source env/bin/activate"
 source env/bin/activate
 cd ../..
 pwd
+echo "install old pip"
+pip install pip==9.0.3
 echo "pip install source/image-handler/. --target=$VIRTUAL_ENV/lib/python2.7/site-packages/"
 pip install source/image-handler/. --target=$VIRTUAL_ENV/lib/python2.7/site-packages/
 echo "pip install -r source/image-handler/requirements.txt --target=$VIRTUAL_ENV/lib/python2.7/site-packages/"
@@ -73,7 +77,7 @@ echo "cp pngquant $VIRTUAL_ENV"
 cp -f pngquant $VIRTUAL_ENV
 #installing optipng pngcrush gifsicle jpegtran
 echo "yum install optipng pngcrush gifsicle libjpeg* pngquant ImageMagick-devel -y"
-yum install optipng pngcrush gifsicle libjpeg* pngquant ImageMagick-devel -y
+sudo yum install optipng pngcrush gifsicle libjpeg* pngquant ImageMagick-devel -y
 mkdir $VIRTUAL_ENV/bin/lib
 cp -f /usr/bin/jpegtran $VIRTUAL_ENV
 cp -f /usr/bin/optipng $VIRTUAL_ENV
@@ -85,7 +89,7 @@ cp -f /usr/lib64/libimagequant.so* $VIRTUAL_ENV/bin/lib
 cd $VIRTUAL_ENV
 pwd
 echo 'yum install nasm autoconf automake libtool -y'
-yum install nasm autoconf automake libtool -y
+sudo yum install nasm autoconf automake libtool -y
 echo 'wget https://github.com/mozilla/mozjpeg/releases/download/v3.2/mozjpeg-3.2-release-source.tar.gz'
 wget https://github.com/mozilla/mozjpeg/releases/download/v3.2/mozjpeg-3.2-release-source.tar.gz
 tar -zxvf mozjpeg-3.2-release-source.tar.gz 
@@ -105,7 +109,7 @@ cd imgmin
 autoreconf -fi
 ./configure
 make
-make install
+sudo make install
 cd $VIRTUAL_ENV
 rm -rf imgmin
 cp -f "/usr/local/bin/imgmin" $VIRTUAL_ENV
@@ -123,16 +127,16 @@ echo "zip -q -r9 $VIRTUAL_ENV/../serverless-image-handler.zip *"
 zip -q -r9 $VIRTUAL_ENV/../serverless-image-handler.zip *
 cd $VIRTUAL_ENV
 pwd
-echo "zip -q -g $VIRTUAL_ENV/../serverless-image-handler.zip pngquant"
-zip -q -g $VIRTUAL_ENV/../serverless-image-handler.zip pngquant
+#echo "zip -q -g $VIRTUAL_ENV/../serverless-image-handler.zip pngquant"
+#zip -q -g $VIRTUAL_ENV/../serverless-image-handler.zip pngquant
 echo "zip -q -g $VIRTUAL_ENV/../serverless-image-handler.zip jpegtran"
 zip -q -g $VIRTUAL_ENV/../serverless-image-handler.zip jpegtran
 echo "zip -q -g $VIRTUAL_ENV/../serverless-image-handler.zip optipng"
 zip -q -g $VIRTUAL_ENV/../serverless-image-handler.zip optipng
 echo "zip -q -g $VIRTUAL_ENV/../serverless-image-handler.zip pngcrush"
 zip -q -g $VIRTUAL_ENV/../serverless-image-handler.zip pngcrush
-echo "zip -q -g $VIRTUAL_ENV/../serverless-image-handler.zip gifsicle"
-zip -q -g $VIRTUAL_ENV/../serverless-image-handler.zip gifsicle
+#echo "zip -q -g $VIRTUAL_ENV/../serverless-image-handler.zip gifsicle"
+#zip -q -g $VIRTUAL_ENV/../serverless-image-handler.zip gifsicle
 echo "zip -q -g $VIRTUAL_ENV/../serverless-image-handler.zip mozjpeg"
 zip -q -g $VIRTUAL_ENV/../serverless-image-handler.zip mozjpeg
 echo "zip -q -g $VIRTUAL_ENV/../serverless-image-handler.zip imgmin"
@@ -147,5 +151,5 @@ cd ..
 zip -q -d serverless-image-handler.zip pip*
 zip -q -d serverless-image-handler.zip easy*
 echo "Clean up build material"
-rm -rf $VIRTUAL_ENV
+#rm -rf $VIRTUAL_ENV
 echo "Completed building distribution"
