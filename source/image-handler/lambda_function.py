@@ -211,9 +211,9 @@ def request_thumbor(original_request, session):
     return session.get(unix_path + http_path, headers=request_headers), vary
 
 
-def process_thumbor_responde(thumbor_response, vary):
+def process_thumbor_response(thumbor_response, vary):
      if thumbor_response.status_code != 200:
-         return response_formater(status_code=response.status_code)
+         return response_formater(status_code=thumbor_response.status_code)
      if vary:
          vary = thumbor_response.headers['vary']
      content_type = thumbor_response.headers['content-type']
@@ -237,7 +237,7 @@ def call_thumbor(original_request):
     if thumbor_down:
         return thumbor_down
     thumbor_response, vary = request_thumbor(original_request, session)
-    return process_thumbor_responde(thumbor_response, vary)
+    return process_thumbor_response(thumbor_response, vary)
 
 
 def gen_body(ctype, content):
