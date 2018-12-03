@@ -208,6 +208,7 @@ def request_thumbor(original_request, session):
     http_path = allow_unsafe_url(http_path)
     request_headers = {}
     vary, request_headers = auto_webp(original_request, request_headers)
+    logging.debug('http_path %s' % http_path)
     return session.get(unix_path + http_path, headers=request_headers), vary
 
 
