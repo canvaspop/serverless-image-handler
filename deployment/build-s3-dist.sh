@@ -20,13 +20,14 @@ echo "pip install source/image-handler/. --target=$VIRTUAL_ENV/lib/python2.7/sit
 pip install source/image-handler/. --target=$VIRTUAL_ENV/lib/python2.7/site-packages/
 echo "pip install -r source/image-handler/requirements.txt --target=$VIRTUAL_ENV/lib/python2.7/site-packages/"
 pip install -r source/image-handler/requirements.txt --target=$VIRTUAL_ENV/lib/python2.7/site-packages/
-echo "pip install source/canvaspop-thumbor-plugins --target=$VIRTUAL_ENV/lib/python2.7/site-packages/"
-pip install source/canvaspop-thumbor-plugins --target=$VIRTUAL_ENV/lib/python2.7/site-packages/
+echo "pip install -r source/canvaspop-thumbor-plugins/requirements.txt --target=$VIRTUAL_ENV/lib/python2.7/site-packages/"
+pip install -r source/canvaspop-thumbor-plugins/requirements.txt --target=$VIRTUAL_ENV/lib/python2.7/site-packages/
 
 cd $VIRTUAL_ENV
 cp -f /usr/bin/jpegtran $VIRTUAL_ENV
 cp -f /usr/bin/optipng $VIRTUAL_ENV
 cp -f /usr/bin/pngcrush $VIRTUAL_ENV
+cp -f /usr/bin/pngquant $VIRTUAL_ENV
 cp -f "/usr/local/bin/imgmin" $VIRTUAL_ENV
 
 mkdir $VIRTUAL_ENV/bin/lib
@@ -53,6 +54,8 @@ echo "zip -q -g $VIRTUAL_ENV/../serverless-image-handler.zip optipng"
 zip -q -g $VIRTUAL_ENV/../serverless-image-handler.zip optipng
 echo "zip -q -g $VIRTUAL_ENV/../serverless-image-handler.zip pngcrush"
 zip -q -g $VIRTUAL_ENV/../serverless-image-handler.zip pngcrush
+echo "zip -q -g $VIRTUAL_ENV/../serverless-image-handler.zip pngquant"
+zip -q -g $VIRTUAL_ENV/../serverless-image-handler.zip pngquant
 echo "zip -q -g $VIRTUAL_ENV/../serverless-image-handler.zip mozjpeg"
 zip -q -g $VIRTUAL_ENV/../serverless-image-handler.zip mozjpeg
 echo "zip -q -g $VIRTUAL_ENV/../serverless-image-handler.zip imgmin"
