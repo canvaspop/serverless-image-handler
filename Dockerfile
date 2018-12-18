@@ -53,8 +53,7 @@ RUN git clone https://github.com/rflynn/imgmin.git && \
     make install
 
 
-# missing pngquant, gifsicle
+# missing, gifsicle
 # cp -f /usr/bin/gifsicle $VIRTUAL_ENV
-# cp -f /usr/bin/pngquant $VIRTUAL_ENV
 # cp -f /usr/lib64/libimagequant.so* $VIRTUAL_ENV/bin/lib
 

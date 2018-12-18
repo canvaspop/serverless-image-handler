@@ -1,0 +1,5 @@
+Thumbor==6.6.0
+./canvaspop-thumbor-plugins
+tc-aws==6.0.4
+supervisor
+https://github.com/thumbor/thumbor-plugins/archive/master.zip

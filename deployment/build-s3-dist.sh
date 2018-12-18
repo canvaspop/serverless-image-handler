@@ -12,16 +12,21 @@ echo "virtualenv env"
 virtualenv env
 echo "source env/bin/activate"
 source env/bin/activate
-cd ../..
+cd ../../source
 pwd
 echo "install old pip"
 pip install pip==9.0.3
 echo "pip install source/image-handler/. --target=$VIRTUAL_ENV/lib/python2.7/site-packages/"
-pip install source/image-handler/. --target=$VIRTUAL_ENV/lib/python2.7/site-packages/
+pip install image-handler/. --target=$VIRTUAL_ENV/lib/python2.7/site-packages/
 echo "pip install -r source/image-handler/requirements.txt --target=$VIRTUAL_ENV/lib/python2.7/site-packages/"
-pip install -r source/image-handler/requirements.txt --target=$VIRTUAL_ENV/lib/python2.7/site-packages/
-echo "pip install -r source/canvaspop-thumbor-plugins/requirements.txt --target=$VIRTUAL_ENV/lib/python2.7/site-packages/"
-pip install -r source/canvaspop-thumbor-plugins/requirements.txt --target=$VIRTUAL_ENV/lib/python2.7/site-packages/
+pip install -r image-handler/requirements.txt --target=$VIRTUAL_ENV/lib/python2.7/site-packages/
+echo "pip install -r source/requirements.txt --target=$VIRTUAL_ENV/lib/python2.7/site-packages/"
+pip install -r requirements.txt --target=$VIRTUAL_ENV/lib/python2.7/site-packages/
+# we have to manually install 5.3 because thumbor-plugins forces 5.2 installation.
+echo "pip uninstall Pillow"
+pip uninstall -y Pillow
+echo "pip install Pillow==5.3.0"
+pip install Pillow==5.3.0
 
 cd $VIRTUAL_ENV
 cp -f /usr/bin/jpegtran $VIRTUAL_ENV
@@ -33,6 +38,14 @@ cp -f "/usr/local/bin/imgmin" $VIRTUAL_ENV
 mkdir $VIRTUAL_ENV/bin/lib
 cp -f /var/task/libjpeg.so* $VIRTUAL_ENV/bin/lib
 cp -f /var/task/bin/jpegtran $VIRTUAL_ENV/mozjpeg
+cp -f /usr/lib64/libpng15.so* $VIRTUAL_ENV/bin/lib
+cp -f /usr/lib64/liblcms2.so* $VIRTUAL_ENV/bin/lib
+cp -f /usr/lib64/libm.so* $VIRTUAL_ENV/bin/lib
+cp -f /usr/lib64/libz.so* $VIRTUAL_ENV/bin/lib
+cp -f /usr/lib64/libgcc_s.so* $VIRTUAL_ENV/bin/lib
+cp -f /usr/lib64/libpthread.so* $VIRTUAL_ENV/bin/lib
+cp -f /usr/lib64/libdl.so* $VIRTUAL_ENV/bin/lib
+cp -f /usr/lib64/libc.so* $VIRTUAL_ENV/bin/lib
 cp -f /usr/lib64/libMagickWand.so* $VIRTUAL_ENV/bin/lib
 cp -f /usr/lib64/libMagickCore.so* $VIRTUAL_ENV/bin/lib
 cp -f /usr/lib64/libgomp.so* $VIRTUAL_ENV/bin/lib
