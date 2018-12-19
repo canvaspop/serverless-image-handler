@@ -31,7 +31,7 @@ class Filter(BaseFilter):
     }
 
     # valid range for width/height
-    canvasProductRange = range(8, 72)
+    canvasProductRange = [8, 72]
 
     def on_scene_ready(self):
         {
@@ -53,11 +53,11 @@ class Filter(BaseFilter):
         productWidth = int(parts[0])
         productHeight = int(parts[1])
 
-        if productWidth not in self.canvasProductRange:
+        if productWidth < self.canvasProductRange[0] or productWidth > self.canvasProductRange[1]:
             logger.error('Invalid product width (%s) rendering single', productWidth)
             return self.callback()
 
-        if productHeight not in self.canvasProductRange:
+        if productHeight < self.canvasProductRange[0] or productHeight > self.canvasProductRange[1]:
             logger.error('Invalid product height (%s) rendering single', productHeight)
             return self.callback()
 
@@ -166,7 +166,7 @@ class Filter(BaseFilter):
             'EF': (100, 87, 72)
         }
 
-        framedProductRange = range(8, 53)
+        framedProductRange = [8, 53]
 
         # mandatory, we need a size
         if len(parts) < 2:
@@ -174,10 +174,10 @@ class Filter(BaseFilter):
             return self.callback()
         productWidth = int(parts[0])
         productHeight = int(parts[1])
-        if productWidth not in framedProductRange:
+        if productWidth < framedProductRange[0] or productWidth > framedProductRange[1]:
             logger.error('Invalid product width (%s) rendering framed', productWidth)
             return self.callback()
-        if productHeight not in framedProductRange:
+        if productHeight < framedProductRange[0] or productHeight > framedProductRange[1]:
             logger.error('Invalid product height (%s) rendering framed', productHeight)
             return self.callback()
         
