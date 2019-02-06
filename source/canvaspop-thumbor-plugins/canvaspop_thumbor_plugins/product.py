@@ -27,7 +27,10 @@ class Filter(BaseFilter):
     frameDepths = {
         '075DW': 0.75,
         '150DW': 1.50,
-        '250DW': 2.50
+        '250DW': 2.50,
+        'EF': 1.50,
+        'WF': 1.50,
+        'BF': 1.50,
     }
 
     # valid range for width/height
@@ -71,6 +74,9 @@ class Filter(BaseFilter):
         if productFrame not in self.frameDepths:
             logger.error('Invalid frame (%s) rendering single', productFrame)
             productFrame = '075DW'
+
+        if productFrame in ('WF','EF','BF'):
+            return self.render_framed_scene('S')
 
         # arbitrary max dimension of each panel
         maxDimension = 1000
@@ -139,13 +145,14 @@ class Filter(BaseFilter):
         self.engine.image = scene
         self.callback()
 
-    def render_framed_scene(self):
+    def render_framed_scene(self, type = 'FP'):    
         engine = self.context.modules.engine
         parts = self.sceneName.split(',')
         # map matte options to inches
-        matteOptions = {
+        edgeOptions = {
             'NOMA': 0,
-            '250MA': 2.5
+            '250MA': 2.5,
+            'BB': 0.250
         }
 
         frameColors = {
@@ -166,7 +173,10 @@ class Filter(BaseFilter):
             'EF': (100, 87, 72)
         }
 
-        framedProductRange = [8, 53]
+        if type == 'FP':
+            framedProductRange = [8, 53]
+        else:
+            framedProductRange = self.canvasProductRange
 
         # mandatory, we need a size
         if len(parts) < 2:
@@ -183,23 +193,25 @@ class Filter(BaseFilter):
         
         # get edge and frame if provided
         productEdge = parts[2] if len(parts) > 2 else 'NOMA'
-        if productEdge not in matteOptions:
+        if productEdge not in edgeOptions:
             logger.error('Invalid edge (%s) rendering framed', productEdge)
             productEdge = 'NOMA'
         productFrame = parts[3] if len(parts) > 3 else 'BF'
         if productFrame not in frameColors:
             logger.error('Invalid frame (%s) rendering framed', productFrame)
             productFrame = 'BF'
-        
         strokeLength = 1
-        matteColor = (255, 255, 253, 255)
+        if type == 'FP':
+            matteColor = (255, 255, 253, 255)
+        else:
+            matteColor = (0, 0, 0, 255)
         frameColor = frameColors[productFrame]
         outlineColor = outlineColors[productFrame]
         shadeColor = (200,200,200)
         shadowColor = (20,20,20,35)
 
-        finishedWidth = productWidth + 2*(0.75 + matteOptions[productEdge])
-        finishedHeight = productHeight + 2*(0.75 + matteOptions[productEdge])
+        finishedWidth = productWidth + 2*(0.75 + edgeOptions[productEdge])
+        finishedHeight = productHeight + 2*(0.75 + edgeOptions[productEdge])
         
         # arbitrary max dimension
         maxDimension = 1280
@@ -219,7 +231,7 @@ class Filter(BaseFilter):
         # create an image with a buffer around it
         scene = Image.new('RGBA', (int(width + (2*buffer)), int(height + (2*buffer))), (255,255,255,0))
         dpi = (scene.size[0] - (2 * buffer)) / finishedWidth
-        matteLength = math.ceil(matteOptions[productEdge] * dpi) #in pixels scaled to size of image
+        matteLength = math.ceil(edgeOptions[productEdge] * dpi) #in pixels scaled to size of image
         frameLength = math.ceil(0.75 * dpi)
         outerFramePosStart = (buffer, buffer)
         outerFramePosEnd = (int(scene.size[0] - buffer), int(scene.size[1] - buffer))
@@ -307,7 +319,7 @@ class Filter(BaseFilter):
         innerFrame.rectangle([innerFramePosStart, innerFramePosEnd], None, outlineColor, 1)
 
         # matte inner emboss
-        if (matteLength > 0):
+        if (matteLength > 0 and type == 'FP'):
             shadeImageFrame = ImageDraw.Draw(scene, 'RGBA')
             shadeImageFrame.rectangle([(imagePosStart[0]-5, imagePosStart[1]-5), (imagePosEnd[0]+5, imagePosEnd[1] +5)], None, shadeColor, int(5))
 
@@ -327,11 +339,11 @@ class Filter(BaseFilter):
         productWidth = int(parts[0])
         productHeight = int(parts[1])
 
-        if productWidth not in self.canvasProductRange:
+        if productWidth < self.canvasProductRange[0] or productWidth > self.canvasProductRange[1]:
             logger.error('Invalid product width (%s) rendering triptych', productWidth)
             return self.callback()
 
-        if productHeight not in self.canvasProductRange:
+        if productHeight < self.canvasProductRange[0] or productHeight > self.canvasProductRange[1]:
             logger.error('Invalid product height (%s) rendering triptych', productHeight)
             return self.callback()
 
