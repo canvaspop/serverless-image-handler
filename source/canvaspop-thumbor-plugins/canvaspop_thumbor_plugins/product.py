@@ -42,6 +42,7 @@ class Filter(BaseFilter):
             'T': self.render_triptych_scene,
             'S': self.render_single_scene,
             'FP': self.render_framed_scene,
+            'SPP': self.render_pet_portrait_scene
         }[self.product]()
 
     def render_single_scene(self):
@@ -53,8 +54,8 @@ class Filter(BaseFilter):
            logger.error('Missing width/height in scene name')
            return self.callback()
 
-        productWidth = int(parts[0])
-        productHeight = int(parts[1])
+        productWidth = float(parts[0])
+        productHeight = float(parts[1])
 
         if productWidth < self.canvasProductRange[0] or productWidth > self.canvasProductRange[1]:
             logger.error('Invalid product width (%s) rendering single', productWidth)
@@ -78,11 +79,21 @@ class Filter(BaseFilter):
         if productFrame in ('WF','EF','BF'):
             return self.render_framed_scene('S')
 
+        # version 2 is for printables
+        version = int(parts[4]) if len(parts) > 4 else 1
+
+        logger.debug('Rendering single with version %s', version)
+
         # arbitrary max dimension of each panel
         maxDimension = 1000
 
         # buffer to add around the panels and between them for aesthetic purposes
         buffer = maxDimension / 20
+
+        # in version 2 the image contains the frame
+        if version == 2:
+            productWidth += 2 * self.frameDepths[productFrame]
+            productHeight += 2 * self.frameDepths[productFrame]
 
         # the size of each panel, matching the aspect ratio of the requested product size
         ratio = float(productWidth) / float(productHeight)
@@ -95,11 +106,11 @@ class Filter(BaseFilter):
 
         # create an image with buffer around them
         scene = Image.new('RGBA', (int(width+2*buffer), int(height+2*buffer)), (255,255,255,0))
-    
+
         finalWidth = productWidth
         finalHeight = productHeight
 
-        edgeSize = self.frameDepths[productFrame] if productEdge == 'PB' else 0.0
+        edgeSize = self.frameDepths[productFrame] if productEdge == 'PB' and version == 1 else 0.0
 
         image = self.engine.image.convert('RGBA')
 
@@ -122,8 +133,18 @@ class Filter(BaseFilter):
             t = int(cy - h / 2)
             b = int(cy + h / 2)
 
+        logger.debug('initial crop is %s', (l,t,r,b))
+
         # the actual center crop
         foreground = image.crop((l,t,r,b))
+
+        # if version = 2 then this is a printable that includes the border so we need to
+        # crop the borders off by the edge size first (this accommodates PB)
+        if version == 2:
+            frameSize = self.frameDepths[productFrame] * 2.0
+            crop = foreground.size[0] * (frameSize / productWidth) / 2.0
+            logger.debug('crop size is %s', crop)
+            foreground = foreground.crop((crop, crop, foreground.size[0]-crop, foreground.size[1]-crop))
 
         # size of the edge in pixels scaled to image width (0 if not PB)
         edgeWidth = edgeSize * foreground.size[0] / (finalWidth + 2 * edgeSize)
@@ -134,6 +155,7 @@ class Filter(BaseFilter):
 
         cropBox = (edgeWidth, edgeWidth, edgeWidth + panelWidth, edgeWidth + panelHeight)
         panel = foreground.crop(cropBox).resize((width,height))
+
         # frame shadow
         frameShadow = ImageDraw.Draw(scene, 'RGBA')
         frameShadow.rectangle([(buffer+10, buffer+20), (buffer+panel.size[0]-10, buffer+panel.size[1]+20)], (20,20,20,140))
@@ -141,18 +163,19 @@ class Filter(BaseFilter):
 
         pasteBox = (buffer, buffer, width+buffer, height+buffer)
         scene.paste(panel, pasteBox)
-                
+
         self.engine.image = scene
         self.callback()
 
-    def render_framed_scene(self, type = 'FP'):    
+    def render_framed_scene(self, type = 'FP'):
         engine = self.context.modules.engine
         parts = self.sceneName.split(',')
         # map matte options to inches
         edgeOptions = {
             'NOMA': 0,
             '250MA': 2.5,
-            'BB': 0.250
+            'BB': 0.1,
+            'WB': 0.1
         }
 
         frameColors = {
@@ -190,7 +213,7 @@ class Filter(BaseFilter):
         if productHeight < framedProductRange[0] or productHeight > framedProductRange[1]:
             logger.error('Invalid product height (%s) rendering framed', productHeight)
             return self.callback()
-        
+
         # get edge and frame if provided
         productEdge = parts[2] if len(parts) > 2 else 'NOMA'
         if productEdge not in edgeOptions:
@@ -210,9 +233,17 @@ class Filter(BaseFilter):
         shadeColor = (200,200,200)
         shadowColor = (20,20,20,35)
 
+        # version 2 is for printables
+        version = int(parts[4]) if len(parts) > 4 else 1
+
+        if type == 'S' and version == 2:
+            logger.debug('adjusting product size for framed single panel')
+            productWidth += 2 * self.frameDepths[productFrame]
+            productHeight += 2 * self.frameDepths[productFrame]
+
         finishedWidth = productWidth + 2*(0.75 + edgeOptions[productEdge])
         finishedHeight = productHeight + 2*(0.75 + edgeOptions[productEdge])
-        
+
         # arbitrary max dimension
         maxDimension = 1280
 
@@ -227,7 +258,7 @@ class Filter(BaseFilter):
         else:
             height = maxDimension
             width = int(maxDimension * ratio)
-             
+
         # create an image with a buffer around it
         scene = Image.new('RGBA', (int(width + (2*buffer)), int(height + (2*buffer))), (255,255,255,0))
         dpi = (scene.size[0] - (2 * buffer)) / finishedWidth
@@ -244,14 +275,14 @@ class Filter(BaseFilter):
 
         # amount in inches to crop off the matte extension which cuts into the actual image
         edgeSize = (0.125 * dpi) if productEdge == '250MA' else 0.0
-        
+
         image = self.engine.image.convert('RGBA')
 
         # (x0,y0,x1,y1) is used to center crop the image
         (w, h) = (image.size[0], image.size[1])
         (x0, y0, x1, y1) = (0, 0, w, h)
-        (cx, cy) = (w/2, h/2) 
-        
+        (cx, cy) = (w/2, h/2)
+
         # compute the ratio of the image aspect ratio to the final product aspect ratio
         aspectRatio = (float(w) / float(h)) / (float(imagePosEnd[0] - imagePosStart[0] + (2 * edgeSize)) / float(imagePosEnd[1] - imagePosStart[1] + (2 * edgeSize)))
         if aspectRatio > 1:
@@ -266,7 +297,15 @@ class Filter(BaseFilter):
             y1 = int(cy + h / 2)
 
         # the actual center crop
-        foreground = image.crop((x0, y0, x1, y1))    
+        foreground = image.crop((x0, y0, x1, y1))
+        # if version = 2 then this is a printable that includes the border so we need to
+        # crop the borders off by the edge size first (this accommodates PB)
+        if version == 2 and type == 'S':
+            frameSize = self.frameDepths[productFrame] * 2.0
+            crop = foreground.size[0] * (frameSize / productWidth) / 2.0
+            logger.debug('crop size is %s', crop)
+            foreground = foreground.crop((crop, crop, foreground.size[0]-crop, foreground.size[1]-crop))
+
         foreground = foreground.crop((edgeSize, edgeSize, foreground.size[0] - edgeSize, foreground.size[1] - edgeSize))
         panel = foreground.resize((imagePosEnd[0] - imagePosStart[0] + 1, imagePosEnd[1] - imagePosStart[1] + 1)) #+1 because it seems to not cover the entire area and leaves a blank 1x1 row and column at the right and bottom. Might be due to resize artifact?
 
@@ -274,7 +313,7 @@ class Filter(BaseFilter):
         frameShadow = ImageDraw.Draw(scene, 'RGBA')
         frameShadow.rectangle([(outerFramePosStart[0]+10, outerFramePosStart[1]+20), (outerFramePosEnd[0]-10, outerFramePosEnd[1]+20)], (20,20,20,140))
         scene = scene.filter(ImageFilter.GaussianBlur(20))
-        
+
         #outer frame
         outerFrame = ImageDraw.Draw(scene, 'RGBA')
         outerFrame.rectangle([outerFramePosStart, outerFramePosEnd], frameColor, outlineColor, strokeLength)
@@ -285,7 +324,7 @@ class Filter(BaseFilter):
         shineEffect.rectangle([(outerFramePosStart[0] + 1, outerFramePosStart[1] + 1), (outerFramePosEnd[0] - 1, outerFramePosEnd[1] - 1)], shineColors[productFrame])
         overlay = overlay.filter(ImageFilter.GaussianBlur(2))
         scene.paste(overlay, (0,0), overlay)
-        
+
         # frame trim
         frameTrim = ImageDraw.Draw(scene, 'RGBA')
         #top left
@@ -313,8 +352,8 @@ class Filter(BaseFilter):
         innerFrameShadow.rectangle([(innerFramePosEnd[0] - 6, innerFramePosStart[1] -3 + shadowCastLength), (innerFramePosEnd[0] + 3, innerFramePosEnd[1] - 6)], shadowColor)
         overlay = overlay.filter(ImageFilter.GaussianBlur(5))
         scene.paste(overlay, (0,0), overlay)
-        
-        # inner frame 
+
+        # inner frame
         innerFrame = ImageDraw.Draw(scene, 'RGBA')
         innerFrame.rectangle([innerFramePosStart, innerFramePosEnd], None, outlineColor, 1)
 
@@ -325,6 +364,22 @@ class Filter(BaseFilter):
 
         self.engine.image = scene
         self.callback()
+
+    def render_pet_portrait_scene(self):
+        engine = self.context.modules.engine
+
+        image = self.engine.image.convert('RGBA')
+
+        # (l,t,r,b) is used to center crop the image
+        (w,h) = (image.size[0],image.size[1])
+        (l,t,r,b) = (37,37,w-37,h-37)
+
+        # the actual center crop
+        foreground = image.crop((l,t,r,b))
+
+        self.engine.image = foreground
+        self.render_single_scene()
+
 
     def render_triptych_scene(self):
         engine = self.context.modules.engine
