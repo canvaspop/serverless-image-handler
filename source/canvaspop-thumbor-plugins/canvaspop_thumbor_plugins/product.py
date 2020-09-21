@@ -106,7 +106,7 @@ class Filter(BaseFilter):
 
         # create an image with buffer around them
         scene = Image.new('RGBA', (int(width+2*buffer), int(height+2*buffer)), (255,255,255,0))
-
+    
         finalWidth = productWidth
         finalHeight = productHeight
 
@@ -163,11 +163,11 @@ class Filter(BaseFilter):
 
         pasteBox = (buffer, buffer, width+buffer, height+buffer)
         scene.paste(panel, pasteBox)
-
+                
         self.engine.image = scene
         self.callback()
 
-    def render_framed_scene(self, type = 'FP'):
+    def render_framed_scene(self, type = 'FP'):    
         engine = self.context.modules.engine
         parts = self.sceneName.split(',')
         # map matte options to inches
@@ -213,7 +213,7 @@ class Filter(BaseFilter):
         if productHeight < framedProductRange[0] or productHeight > framedProductRange[1]:
             logger.error('Invalid product height (%s) rendering framed', productHeight)
             return self.callback()
-
+        
         # get edge and frame if provided
         productEdge = parts[2] if len(parts) > 2 else 'NOMA'
         if productEdge not in edgeOptions:
@@ -243,7 +243,7 @@ class Filter(BaseFilter):
 
         finishedWidth = productWidth + 2*(0.75 + edgeOptions[productEdge])
         finishedHeight = productHeight + 2*(0.75 + edgeOptions[productEdge])
-
+        
         # arbitrary max dimension
         maxDimension = 1280
 
@@ -258,7 +258,7 @@ class Filter(BaseFilter):
         else:
             height = maxDimension
             width = int(maxDimension * ratio)
-
+             
         # create an image with a buffer around it
         scene = Image.new('RGBA', (int(width + (2*buffer)), int(height + (2*buffer))), (255,255,255,0))
         dpi = (scene.size[0] - (2 * buffer)) / finishedWidth
@@ -275,14 +275,14 @@ class Filter(BaseFilter):
 
         # amount in inches to crop off the matte extension which cuts into the actual image
         edgeSize = (0.125 * dpi) if productEdge == '250MA' else 0.0
-
+        
         image = self.engine.image.convert('RGBA')
 
         # (x0,y0,x1,y1) is used to center crop the image
         (w, h) = (image.size[0], image.size[1])
         (x0, y0, x1, y1) = (0, 0, w, h)
-        (cx, cy) = (w/2, h/2)
-
+        (cx, cy) = (w/2, h/2) 
+        
         # compute the ratio of the image aspect ratio to the final product aspect ratio
         aspectRatio = (float(w) / float(h)) / (float(imagePosEnd[0] - imagePosStart[0] + (2 * edgeSize)) / float(imagePosEnd[1] - imagePosStart[1] + (2 * edgeSize)))
         if aspectRatio > 1:
@@ -297,7 +297,7 @@ class Filter(BaseFilter):
             y1 = int(cy + h / 2)
 
         # the actual center crop
-        foreground = image.crop((x0, y0, x1, y1))
+        foreground = image.crop((x0, y0, x1, y1))    
         # if version = 2 then this is a printable that includes the border so we need to
         # crop the borders off by the edge size first (this accommodates PB)
         if version == 2 and type == 'S':
@@ -313,7 +313,7 @@ class Filter(BaseFilter):
         frameShadow = ImageDraw.Draw(scene, 'RGBA')
         frameShadow.rectangle([(outerFramePosStart[0]+10, outerFramePosStart[1]+20), (outerFramePosEnd[0]-10, outerFramePosEnd[1]+20)], (20,20,20,140))
         scene = scene.filter(ImageFilter.GaussianBlur(20))
-
+        
         #outer frame
         outerFrame = ImageDraw.Draw(scene, 'RGBA')
         outerFrame.rectangle([outerFramePosStart, outerFramePosEnd], frameColor, outlineColor, strokeLength)
@@ -324,7 +324,7 @@ class Filter(BaseFilter):
         shineEffect.rectangle([(outerFramePosStart[0] + 1, outerFramePosStart[1] + 1), (outerFramePosEnd[0] - 1, outerFramePosEnd[1] - 1)], shineColors[productFrame])
         overlay = overlay.filter(ImageFilter.GaussianBlur(2))
         scene.paste(overlay, (0,0), overlay)
-
+        
         # frame trim
         frameTrim = ImageDraw.Draw(scene, 'RGBA')
         #top left
@@ -352,8 +352,8 @@ class Filter(BaseFilter):
         innerFrameShadow.rectangle([(innerFramePosEnd[0] - 6, innerFramePosStart[1] -3 + shadowCastLength), (innerFramePosEnd[0] + 3, innerFramePosEnd[1] - 6)], shadowColor)
         overlay = overlay.filter(ImageFilter.GaussianBlur(5))
         scene.paste(overlay, (0,0), overlay)
-
-        # inner frame
+        
+        # inner frame 
         innerFrame = ImageDraw.Draw(scene, 'RGBA')
         innerFrame.rectangle([innerFramePosStart, innerFramePosEnd], None, outlineColor, 1)
 
@@ -412,6 +412,11 @@ class Filter(BaseFilter):
         if productFrame not in self.frameDepths:
             logger.error('Invalid frame (%s) rendering triptych', productFrame)
             productFrame = '075DW'
+
+        version = int(parts[4])
+        #version 2 is for triptych printables
+        if version == 2:
+            return self.render_triptych_v2_scene()
 
         # arbitrary max dimension of each panel
         maxDimension = 1000
@@ -504,6 +509,84 @@ class Filter(BaseFilter):
         self.engine.image = scene
         self.callback()
 
+    def render_triptych_v2_scene(self):
+        engine = self.context.modules.engine
+        parts = self.sceneName.split(',')
+
+        productWidth = int(parts[0])
+        productHeight = int(parts[1])
+        productEdge = parts[2] if len(parts) > 2 else 'WB'
+        productFrame = parts[3] if len(parts) > 3 else '075DW'
+
+        image = self.engine.image.convert('RGBA')
+
+        #each panel's dimensions in inches
+        panelWidthInches = productWidth/3
+        panelHeightInches = productHeight
+        # edge size in inches
+        edgeSizeInches = self.frameDepths[productFrame]
+        # the entire image's width in inches
+        imageWidthInches = (edgeSizeInches + panelWidthInches + edgeSizeInches) * 3
+        imageWidthPixels = image.size[0]
+        imageHeightPixels = image.size[1]
+        # the pixels per inch based on the image width in pixels and the image width in inches
+        ppi = imageWidthPixels / imageWidthInches
+        # edge size converted to pixels
+        edgeSizePixels = edgeSizeInches * ppi
+
+        # panel dimensions in pixels
+        panelHeightPixels = panelHeightInches * ppi
+        panelWidthPixels = panelWidthInches * ppi
+
+        # arbitrary max dimension of each panel
+        maxDimension = 1000
+
+        # buffer to add around the panels and between them for aesthetic purposes
+        buffer = maxDimension / 20
+
+        # the size of each panel, matching the aspect ratio of the requested product size
+        ratio = float(panelWidthInches) / float(panelHeightInches)
+        if ratio > 1:
+            # landscape
+            width = maxDimension
+            height = int(maxDimension / ratio)
+        else:
+            # portrait
+            height = maxDimension
+            width = int(maxDimension * ratio)
+
+        # create an image large enough to hold 3 panels with buffer around them
+        scene = Image.new('RGBA', (int(3 * width + 4 * buffer), int(height + 2 * buffer)), (255,255,255,0))
+
+        # the center point vertically where we can then locate the top and bottom borders of the image
+        # (this is necessary because the top and bottom have an arbitrary white border padding added by the browser)
+        centerVerticalPixels = image.size[1] / 2
+        aspectRatio = width/panelWidthPixels
+        adjustedPanelWidthPixels = int(panelWidthPixels * aspectRatio)
+        adjustedPanelHeightPixels = int(panelHeightPixels * aspectRatio)
+
+        for x in range(3):
+            # determine the crop points of the panel
+            left = edgeSizePixels + ((panelWidthPixels + edgeSizePixels + edgeSizePixels) * x)
+            top = centerVerticalPixels - (panelHeightPixels / 2)
+            bottom = centerVerticalPixels + (panelHeightPixels / 2)
+            right = left + panelWidthPixels
+            panel = image.crop((left, top, right, bottom)).resize((width, height))
+            pasteBox = (buffer + ((adjustedPanelWidthPixels + buffer) * x), buffer)
+
+            # frame shadow
+            overlay = Image.new('RGBA', (int(3*width+4*buffer), int(height+2*buffer)), (255,255,255,0))
+            frameShadow = ImageDraw.Draw(overlay, 'RGBA')
+            topLeft = ((buffer + ((buffer + width) * x) + 10), buffer + 25)
+            bottomRight = ((buffer + (buffer + width) * x) + width -10, buffer + height + 25)
+            frameShadow.rectangle([topLeft, bottomRight], (20,20,20,200))
+            overlay = overlay.filter(ImageFilter.GaussianBlur(15))
+            scene.paste(overlay, (0,0), overlay)
+            scene.paste(panel, pasteBox)
+
+        self.engine.image = scene
+        self.callback()
+
     def warp_panel(self, panel, a=50):
         (w, h) = panel.size
         image = Image.new('RGBA', (w, h+(2*a)))
@@ -559,14 +642,14 @@ class Filter(BaseFilter):
         shadowScene = Image.new('RGBA', scene.size, (255,255,255,0))
         maskShadow = Image.open(shadow).convert('RGBA')
         shadowScene.paste(maskShadow, (0,0), maskShadow)
-        
+
         # Make new image size of scene
         c1 = Image.new("RGBA", scene.size, (255,255,255,255))
         c1.paste(foreground, offset)
         c2 = Image.new("RGBA", scene.size)
         c2.paste(c1, (0, 0), mask)
         out = ImageChops.multiply(scene, c1)
-        composite = Image.composite(out, scene, mask)        
+        composite = Image.composite(out, scene, mask)
 
         scene.paste(shadowScene, (0,0))
         scene.paste(composite, (0,0), mask)
